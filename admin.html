@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}Painel Admin – Rota Econômica{% endblock %}
+
+{% block content %}
+<style>
+  .admin-badge { display:inline-flex;align-items:center;gap:6px;background:rgba(229,57,53,.15);color:#e53935;border:1px solid rgba(229,57,53,.3);padding:4px 12px;border-radius:20px;font-size:.75rem;font-weight:700;letter-spacing:.05em;margin-bottom:20px; }
+  .stat-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px; }
+  .stat-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden; }
+  .stat-card::before { content:'';position:absolute;top:0;left:0;right:0;height:3px; }
+  .stat-card.orange::before { background:var(--accent); }
+  .stat-card.blue::before { background:#3b82f6; }
+  .stat-card.green::before { background:var(--green); }
+  .stat-card.red::before { background:var(--red); }
+  .stat-card.purple::before { background:#a855f7; }
+  .stat-icon { font-size:1.8rem;margin-bottom:8px; }
+  .stat-value { font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;line-height:1; }
+  .stat-label { color:var(--muted);font-size:.8rem;margin-top:4px; }
+  .stat-sub { font-size:.75rem;color:var(--green);margin-top:6px; }
+  .section-title { font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem;margin-bottom:16px;display:flex;align-items:center;gap:8px; }
+  .grid-2 { display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px; }
+  .table-wrap { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden; }
+  .table-wrap table { width:100%;border-collapse:collapse; }
+  .table-wrap th { background:var(--surface2);padding:12px 16px;text-align:left;font-size:.78rem;color:var(--muted);font-weight:600;letter-spacing:.05em;text-transform:uppercase; }
+  .table-wrap td { padding:12px 16px;font-size:.88rem;border-top:1px solid var(--border); }
+  .table-wrap tr:hover td { background:rgba(255,255,255,.02); }
+  .badge { display:inline-block;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:600; }
+  .badge-green { background:rgba(46,204,113,.15);color:var(--green); }
+  .badge-orange { background:rgba(245,166,35,.15);color:var(--accent); }
+  .badge-red { background:rgba(231,76,60,.15);color:var(--red); }
+  .price-row { display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border); }
+  .price-row:last-child { border-bottom:none; }
+  .price-label { display:flex;align-items:center;gap:8px;font-size:.9rem; }
+  .price-val { font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;color:var(--accent); }
+  .quick-links { display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px; }
+  .quick-link { display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 20px;text-decoration:none;color:var(--text);font-size:.9rem;font-weight:500;transition:all .2s;flex:1;min-width:160px; }
+  .quick-link:hover { border-color:var(--accent);color:var(--accent); }
+  .quick-link .ql-icon { font-size:1.4rem; }
+  .stars { color:var(--accent);font-size:.85rem; }
+</style>
+
+<span class="admin-badge">🛡️ PAINEL ADMINISTRADOR</span>
+
+<h1 class="page-title" style="margin-bottom:8px;">Dashboard</h1>
+<p style="color:var(--muted);margin-bottom:24px;font-size:.9rem;">Visão geral do sistema Rota Econômica</p>
+
+<!-- Acesso rápido -->
+<div class="quick-links">
+  <a href="/admin/usuarios" class="quick-link"><span class="ql-icon">👥</span> Gerenciar Usuários</a>
+  <a href="/admin/postos" class="quick-link"><span class="ql-icon">⛽</span> Gerenciar Postos</a>
+  <a href="/admin/avaliacoes" class="quick-link"><span class="ql-icon">⭐</span> Avaliações</a>
+</div>
+
+<!-- Stats -->
+<div class="stat-grid">
+  <div class="stat-card orange">
+    <div class="stat-icon">👥</div>
+    <div class="stat-value">{{ total_usuarios }}</div>
+    <div class="stat-label">Usuários cadastrados</div>
+    <div class="stat-sub">▲ {{ novos_usuarios }} novos esta semana</div>
+  </div>
+  <div class="stat-card blue">
+    <div class="stat-icon">⛽</div>
+    <div class="stat-value">{{ total_postos }}</div>
+    <div class="stat-label">Postos cadastrados</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon">⭐</div>
+    <div class="stat-value">{{ total_avaliacoes }}</div>
+    <div class="stat-label">Avaliações enviadas</div>
+  </div>
+  <div class="stat-card purple">
+    <div class="stat-icon">🔔</div>
+    <div class="stat-value">{{ total_alertas }}</div>
+    <div class="stat-label">Alertas de preço ativos</div>
+  </div>
+</div>
+
+<!-- Grid de 2 colunas -->
+<div class="grid-2">
+  <!-- Preços médios -->
+  <div class="card">
+    <div class="section-title">📈 Preços Médios Atuais</div>
+    <div class="price-row">
+      <span class="price-label">🟢 Gasolina</span>
+      <span class="price-val">R$ {{ precos_medios.gasolina }}</span>
+    </div>
+    <div class="price-row">
+      <span class="price-label">🟡 Etanol</span>
+      <span class="price-val">R$ {{ precos_medios.etanol }}</span>
+    </div>
+    <div class="price-row">
+      <span class="price-label">🔵 Diesel</span>
+      <span class="price-val">R$ {{ precos_medios.diesel }}</span>
+    </div>
+  </div>
+
+  <!-- Top cidades -->
+  <div class="card">
+    <div class="section-title">🏙️ Top Cidades por Usuários</div>
+    {% if cidades %}
+      {% for cidade, total in cidades %}
+      <div class="price-row">
+        <span class="price-label">{{ cidade or 'Não informada' }}</span>
+        <span class="badge badge-orange">{{ total }} usuário{{ 's' if total > 1 else '' }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="color:var(--muted);font-size:.88rem;">Nenhum dado disponível.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Últimas avaliações -->
+<div class="section-title">⭐ Últimas Avaliações</div>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Usuário</th>
+        <th>Posto</th>
+        <th>Nota</th>
+        <th>Comentário</th>
+        <th>Data</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for av in ultimas_avals %}
+      <tr>
+        <td>{{ av.usuario.nome }}</td>
+        <td>{{ av.posto.nome }}</td>
+        <td><span class="stars">{{ '★' * av.nota }}{{ '☆' * (5 - av.nota) }}</span></td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ av.comentario or '—' }}</td>
+        <td style="color:var(--muted);">{{ av.criado_em.strftime('%d/%m/%Y') }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">Nenhuma avaliação ainda.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

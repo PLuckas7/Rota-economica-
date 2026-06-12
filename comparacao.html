@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+{% block title %}Comparar Preços – Rota Econômica{% endblock %}
+{% block page_title %}📊 Comparação de Preços{% endblock %}
+
+{% block head %}
+<style>
+  .comp-layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+  .comp-select-panel { display: flex; flex-direction: column; gap: 12px; }
+  .posto-check-item {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 10px;
+  }
+  .posto-check-item:hover { border-color: var(--accent); }
+  .posto-check-item.selected { border-color: var(--accent); background: rgba(245,166,35,.07); }
+  .posto-check-item input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+  .posto-check-nome { font-size: .88rem; font-weight: 600; flex: 1; }
+  .posto-check-precos { font-size: .75rem; color: var(--muted); }
+
+  .comp-results { display: flex; flex-direction: column; gap: 16px; }
+  .comp-instructions { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .comp-instructions .icon { font-size: 3rem; margin-bottom: 12px; }
+
+  .comp-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .comp-table table { width: 100%; border-collapse: collapse; }
+  .comp-table th { background: var(--surface2); padding: 12px 16px; text-align: left; font-family: 'Syne', sans-serif; font-size: .82rem; color: var(--muted); font-weight: 600; letter-spacing: .05em; }
+  .comp-table td { padding: 12px 16px; border-top: 1px solid var(--border); font-size: .88rem; }
+  .comp-table tr:hover td { background: rgba(255,255,255,.02); }
+  .best-price { color: var(--green); font-weight: 700; }
+  .worst-price { color: var(--red); }
+
+  .chart-bars { display: flex; flex-direction: column; gap: 10px; }
+  .bar-item { display: flex; align-items: center; gap: 12px; }
+  .bar-label { width: 160px; font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { flex: 1; height: 28px; background: var(--surface2); border-radius: 6px; overflow: hidden; position: relative; }
+  .bar-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; padding: 0 10px; font-size: .78rem; font-weight: 700; color: #000; transition: width .6s cubic-bezier(.4,0,.2,1); }
+  .bar-val { width: 70px; text-align: right; font-size: .85rem; font-weight: 700; }
+
+  .comb-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .comb-tab { padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: .85rem; font-weight: 500; border: 1px solid var(--border); background: var(--surface); color: var(--muted); transition: all .2s; }
+  .comb-tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  .economia-box { background: rgba(46,204,113,.1); border: 1px solid rgba(46,204,113,.25); border-radius: var(--radius); padding: 16px 20px; }
+  .economia-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .95rem; color: var(--green); margin-bottom: 10px; }
+  .eco-item { display: flex; justify-content: space-between; font-size: .85rem; padding: 4px 0; }
+  .eco-label { color: var(--muted); }
+
+  @media (max-width: 768px) { .comp-layout { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px">
+  <h2 style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:4px">Compare preços entre postos</h2>
+  <p style="color:var(--muted);font-size:.88rem">Selecione até 5 postos para comparar lado a lado</p>
+</div>
+
+<div class="comp-layout">
+  <!-- Seleção -->
+  <div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Selecionar Postos</div>
+      <input type="text" class="form-input" id="searchCheck" placeholder="🔍 Buscar…" oninput="filtrarCheck()" style="margin-bottom:10px"/>
+      <div id="postoCheckList" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="comparar()">📊 Comparar Selecionados</button>
+  </div>
+
+  <!-- Resultado -->
+  <div class="comp-results" id="compResults">
+    <div class="comp-instructions">
+      <div class="icon">📊</div>
+      <p>Selecione pelo menos 2 postos e clique em <strong>Comparar</strong></p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let todosPostos = [];
+  let selecionados = new Set();
+  let combustivelAtivo = 'gasolina';
+
+  async function carregar() {
+    const res = await fetch('/api/postos');
+    todosPostos = await res.json();
+    renderCheckList(todosPostos);
+  }
+
+  function renderCheckList(lista) {
+    const el = document.getElementById('postoCheckList');
+    el.innerHTML = lista.map(p => `
+      <label class="posto-check-item ${selecionados.has(p.id) ? 'selected' : ''}" id="chk-${p.id}" onclick="toggleSelect(${p.id})">
+        <input type="checkbox" ${selecionados.has(p.id) ? 'checked' : ''} readonly onclick="return false"/>
+        <div>
+          <div class="posto-check-nome">${p.nome}</div>
+          <div class="posto-check-precos">
+            ${p.gasolina ? `⛽ R$${p.gasolina.toFixed(2)}` : ''}
+            ${p.etanol ? ` 🌿 R$${p.etanol.toFixed(2)}` : ''}
+          </div>
+        </div>
+      </label>`).join('');
+  }
+
+  function toggleSelect(id) {
+    if (selecionados.has(id)) selecionados.delete(id);
+    else {
+      if (selecionados.size >= 5) { alert('Máximo 5 postos.'); return; }
+      selecionados.add(id);
+    }
+    filtrarCheck();
+  }
+
+  function filtrarCheck() {
+    const q = document.getElementById('searchCheck').value.toLowerCase();
+    const lista = todosPostos.filter(p => p.nome.toLowerCase().includes(q) || p.endereco.toLowerCase().includes(q));
+    renderCheckList(lista);
+  }
+
+  async function comparar() {
+    if (selecionados.size < 2) { alert('Selecione pelo menos 2 postos.'); return; }
+    const ids = Array.from(selecionados).join(',');
+    const res = await fetch(`/api/comparar?ids=${ids}`);
+    const postos = await res.json();
+    renderComparacao(postos);
+  }
+
+  function renderComparacao(postos) {
+    const el = document.getElementById('compResults');
+    const tipos = ['gasolina', 'etanol', 'diesel'].filter(t => postos.some(p => p[t] != null));
+
+    // Tabela
+    const rows = postos.map(p => {
+      const tds = tipos.map(t => {
+        if (!p[t]) return '<td>—</td>';
+        const vals = postos.filter(x => x[t]).map(x => x[t]);
+        const min = Math.min(...vals), max = Math.max(...vals);
+        const cls = p[t] === min ? 'best-price' : (p[t] === max && vals.length > 1 ? 'worst-price' : '');
+        return `<td class="${cls}">R$ ${p[t].toFixed(2)}${p[t] === min ? ' 🏆' : ''}</td>`;
+      }).join('');
+      return `<tr><td><strong>${p.nome}</strong><br><small style="color:var(--muted)">${p.bandeira||''}</small></td>${tds}<td>${'★'.repeat(Math.round(p.media_avaliacao))} ${p.media_avaliacao}</td></tr>`;
+    }).join('');
+
+    const ths = tipos.map(t => `<th>${t.charAt(0).toUpperCase()+t.slice(1)}</th>`).join('');
+
+    // Gráfico de barras
+    let barsHtml = '<div class="comb-tabs">' + tipos.map(t =>
+      `<div class="comb-tab ${t === combustivelAtivo ? 'active' : ''}" onclick="setComb('${t}',${JSON.stringify(postos).replace(/</g,'&lt;')})">${t.charAt(0).toUpperCase()+t.slice(1)}</div>`
+    ).join('') + '</div>';
+    barsHtml += buildBars(postos, combustivelAtivo);
+
+    // Economia
+    let ecoHtml = '';
+    tipos.forEach(t => {
+      const vals = postos.filter(p => p[t]).map(p => ({nome: p.nome, val: p[t]}));
+      if (vals.length < 2) return;
+      const min = vals.reduce((a, b) => a.val < b.val ? a : b);
+      const max = vals.reduce((a, b) => a.val > b.val ? a : b);
+      const diff = max.val - min.val;
+      ecoHtml += `<div class="eco-item"><span class="eco-label">${t}: economia vs mais caro</span><span style="color:var(--green);font-weight:700">R$ ${diff.toFixed(2)}/litro</span></div>`;
+    });
+
+    el.innerHTML = `
+      <div class="comp-table">
+        <div style="padding:16px 16px 0;font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem">Tabela Comparativa</div>
+        <div style="overflow-x:auto">
+          <table><thead><tr><th>Posto</th>${ths}<th>Avaliação</th></tr></thead><tbody>${rows}</tbody></table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Gráfico de Barras</div>
+        <div id="barsContainer">${barsHtml}</div>
+      </div>
+      ${ecoHtml ? `<div class="economia-box"><div class="economia-title">💰 Potencial de Economia</div>${ecoHtml}</div>` : ''}`;
+
+    // animar barras
+    setTimeout(() => {
+      document.querySelectorAll('.bar-fill').forEach(b => b.style.width = b.getAttribute('data-w'));
+    }, 100);
+  }
+
+  function buildBars(postos, tipo) {
+    const itens = postos.filter(p => p[tipo] != null).map(p => ({nome: p.nome, val: p[tipo]}));
+    if (!itens.length) return '<p style="color:var(--muted)">Sem dados para este tipo.</p>';
+    const max = Math.max(...itens.map(i => i.val));
+    const min = Math.min(...itens.map(i => i.val));
+    const bars = itens.sort((a,b) => a.val - b.val).map(i => {
+      const pct = (i.val / max * 100).toFixed(1);
+      const cor = i.val === min ? '#2ecc71' : (i.val === max && itens.length > 1 ? '#e74c3c' : '#f5a623');
+      return `<div class="bar-item">
+        <div class="bar-label" title="${i.nome}">${i.nome.split(' ').slice(0,3).join(' ')}</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="background:${cor};width:0%;transition:width .8s ease" data-w="${pct}%">R$${i.val.toFixed(2)}</div>
+        </div>
+        <div class="bar-val" style="color:${cor}">R$${i.val.toFixed(2)}</div>
+      </div>`;
+    }).join('');
+    return `<div class="chart-bars">${bars}</div>`;
+  }
+
+  function setComb(tipo, postos) {
+    combustivelAtivo = tipo;
+    const container = document.getElementById('barsContainer');
+    const tipos = ['gasolina', 'etanol', 'diesel'].filter(t => postos.some(p => p[t] != null));
+    container.innerHTML = '<div class="comb-tabs">' + tipos.map(t =>
+      `<div class="comb-tab ${t === tipo ? 'active' : ''}" onclick="setComb('${t}',${JSON.stringify(postos).replace(/</g,'&lt;')})">${t.charAt(0).toUpperCase()+t.slice(1)}</div>`
+    ).join('') + '</div>' + buildBars(postos, tipo);
+    setTimeout(() => {
+      container.querySelectorAll('.bar-fill').forEach(b => b.style.width = b.getAttribute('data-w'));
+    }, 100);
+  }
+
+  carregar();
+</script>
+{% endblock %}

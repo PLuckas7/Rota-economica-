@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}Suporte – Rota Econômica{% endblock %}
+{% block page_title %}💬 Suporte{% endblock %}
+
+{% block head %}
+<style>
+  .suporte-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .faq-item { border-bottom: 1px solid var(--border); padding: 14px 0; }
+  .faq-question { font-weight: 600; font-size: .9rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+  .faq-question::after { content: '+'; font-size: 1.2rem; color: var(--accent); transition: transform .2s; }
+  .faq-item.open .faq-question::after { transform: rotate(45deg); }
+  .faq-answer { font-size: .85rem; color: var(--muted); line-height: 1.7; padding-top: 8px; display: none; }
+  .faq-item.open .faq-answer { display: block; }
+  .contact-card { text-align: center; padding: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); }
+  .contact-icon { font-size: 2rem; margin-bottom: 10px; }
+  .contact-title { font-family: 'Syne', sans-serif; font-weight: 700; margin-bottom: 6px; }
+  .contact-desc { font-size: .83rem; color: var(--muted); margin-bottom: 14px; }
+  @media (max-width: 768px) { .suporte-layout { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="suporte-layout">
+  <!-- FAQ -->
+  <div class="card">
+    <div class="card-title">❓ Perguntas Frequentes</div>
+    <div id="faqList">
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Como encontro o posto mais próximo?</div>
+        <div class="faq-answer">Na tela do Mapa, clique em 📍 para ativar sua localização. O sistema irá automaticamente ordenar os postos por proximidade e mostrar as distâncias em tempo real.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Como criar um alerta de preço?</div>
+        <div class="faq-answer">Vá até a seção "Alertas de Preço", selecione o posto e o tipo de combustível, defina o limite de preço desejado e clique em "Criar Alerta". Você será notificado quando o preço atingir ou ficar abaixo do limite.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Como funciona a comparação de preços?</div>
+        <div class="faq-answer">Na tela "Comparar Preços", selecione até 5 postos e clique em "Comparar". O sistema exibe uma tabela e gráfico visual comparando todos os combustíveis, destacando o menor preço em verde e o maior em vermelho.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Os preços são atualizados em tempo real?</div>
+        <div class="faq-answer">Os preços são atualizados pela comunidade e pelos próprios postos. Nossa plataforma registra histórico de 7 dias para cada tipo de combustível, permitindo acompanhar a variação de preço ao longo do tempo.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Como avalio um posto?</div>
+        <div class="faq-answer">Você pode avaliar qualquer posto na tela "Postos" ou diretamente no Mapa. Clique em ⭐ no posto desejado, escolha uma nota de 1 a 5 estrelas e opcionalmente deixe um comentário sobre sua experiência.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">O sistema segue as normas da LGPD?</div>
+        <div class="faq-answer">Sim. Todas as senhas são criptografadas com hash seguro (Werkzeug/bcrypt). Seus dados pessoais são utilizados apenas para fins de autenticação e personalização da experiência, em conformidade com a Lei Geral de Proteção de Dados.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">Como traço a rota até um posto?</div>
+        <div class="faq-answer">Em qualquer tela com listagem de postos, clique no botão 🧭 ao lado do posto desejado. O Google Maps será aberto automaticamente com a rota traçada a partir da sua localização atual.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contato -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="card-title">📬 Entre em Contato</div>
+      <div class="form-group">
+        <label class="form-label">Assunto</label>
+        <select class="form-input" id="assunto">
+          <option>Reportar erro de preço</option>
+          <option>Sugerir um posto</option>
+          <option>Problema técnico</option>
+          <option>Dúvidas gerais</option>
+          <option>Outros</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mensagem</label>
+        <textarea class="form-input" id="mensagem" rows="4" placeholder="Descreva sua dúvida ou problema…" style="resize:vertical"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="enviarContato()" style="width:100%">📤 Enviar mensagem</button>
+      <div id="contatoMsg" style="display:none;margin-top:10px;padding:10px;background:rgba(46,204,113,.15);border:1px solid rgba(46,204,113,.3);border-radius:8px;color:var(--green);font-size:.85rem">
+        ✅ Mensagem enviada! Responderemos em até 24h.
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="contact-card">
+        <div class="contact-icon">📧</div>
+        <div class="contact-title">E-mail</div>
+        <div class="contact-desc">Suporte geral e dúvidas</div>
+        <span style="font-size:.82rem;color:var(--accent)">suporte@rotaeconomica.com.br</span>
+      </div>
+      <div class="contact-card">
+        <div class="contact-icon">⏱️</div>
+        <div class="contact-title">Tempo de Resposta</div>
+        <div class="contact-desc">Respondemos em até</div>
+        <span style="font-size:1.1rem;font-weight:700;font-family:'Syne',sans-serif;color:var(--accent)">24 horas</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">👥 Sobre a Equipe</div>
+      <p style="color:var(--muted);font-size:.85rem;line-height:1.7;margin-bottom:12px">
+        Rota Econômica é um projeto desenvolvido por estudantes da UNIFAVIP Wyden na disciplina de Desenvolvimento Rápido de Aplicações em Python.
+      </p>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        {% set equipe = ['Pedro Luckas Campos da Silva', 'Pedro Arthur Santos Maciel de Carvalho', 'Matheus Henrique Gomes da Silva', 'Henrique Felix dos Santos'] %}
+        {% for membro in equipe %}
+        <div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:8px">
+          <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700">{{ membro[0] }}</div>
+          <span style="font-size:.85rem">{{ membro }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function toggleFaq(el) { el.parentElement.classList.toggle('open'); }
+  function enviarContato() {
+    const msg = document.getElementById('mensagem').value.trim();
+    if (!msg) { alert('Escreva uma mensagem.'); return; }
+    document.getElementById('mensagem').value = '';
+    document.getElementById('contatoMsg').style.display = 'block';
+    setTimeout(() => document.getElementById('contatoMsg').style.display = 'none', 4000);
+  }
+</script>
+{% endblock %}

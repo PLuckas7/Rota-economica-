@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Editar Usuário – Admin{% endblock %}
+
+{% block content %}
+<style>
+  .admin-badge { display:inline-flex;align-items:center;gap:6px;background:rgba(229,57,53,.15);color:#e53935;border:1px solid rgba(229,57,53,.3);padding:4px 12px;border-radius:20px;font-size:.75rem;font-weight:700;letter-spacing:.05em;margin-bottom:20px; }
+  .back-link { display:inline-flex;align-items:center;gap:6px;color:var(--muted);text-decoration:none;font-size:.85rem;margin-bottom:16px; }
+  .back-link:hover { color:var(--accent); }
+  .form-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;max-width:560px; }
+  .form-group { margin-bottom:18px; }
+  .form-group label { display:block;font-size:.82rem;color:var(--muted);margin-bottom:6px;font-weight:500; }
+  .form-group input[type=text],
+  .form-group input[type=email],
+  .form-group input[type=password] { width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:.9rem;outline:none;transition:border .2s; }
+  .form-group input:focus { border-color:var(--accent); }
+  .toggle-row { display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px; }
+  .toggle-row input[type=checkbox] { width:18px;height:18px;accent-color:var(--accent);cursor:pointer; }
+  .toggle-label { font-size:.9rem;font-weight:500; }
+  .toggle-sub { font-size:.78rem;color:var(--muted); }
+  .btn { display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer;border:none;transition:all .2s;text-decoration:none; }
+  .btn-primary { background:var(--accent);color:#000; }
+  .btn-primary:hover { background:#e09520; }
+  .btn-ghost { background:var(--surface2);border:1px solid var(--border);color:var(--text); }
+  .btn-ghost:hover { border-color:var(--accent); }
+  .form-footer { display:flex;gap:12px;margin-top:24px; }
+  .divider { border:none;border-top:1px solid var(--border);margin:20px 0; }
+  .hint { font-size:.78rem;color:var(--muted);margin-top:4px; }
+</style>
+
+<a href="/admin/usuarios" class="back-link">← Voltar à lista de usuários</a>
+<span class="admin-badge">🛡️ PAINEL ADMINISTRADOR</span>
+
+<h1 class="page-title" style="margin-bottom:24px;">Editar Usuário</h1>
+
+<div class="form-card">
+  <form method="post">
+    <div class="form-group">
+      <label>Nome completo</label>
+      <input type="text" name="nome" value="{{ usuario.nome }}" required>
+    </div>
+    <div class="form-group">
+      <label>E-mail</label>
+      <input type="email" name="email" value="{{ usuario.email }}" required>
+    </div>
+    <div class="form-group">
+      <label>Cidade</label>
+      <input type="text" name="cidade" value="{{ usuario.cidade or '' }}">
+    </div>
+    <div class="form-group">
+      <label>País</label>
+      <input type="text" name="pais" value="{{ usuario.pais or '' }}">
+    </div>
+
+    <hr class="divider">
+
+    <div class="form-group">
+      <label>Nova senha (deixe em branco para não alterar)</label>
+      <input type="password" name="nova_senha" placeholder="••••••••">
+      <span class="hint">Mínimo 6 caracteres.</span>
+    </div>
+
+    <hr class="divider">
+
+    <div class="toggle-row">
+      <input type="checkbox" name="is_admin" id="is_admin" {% if usuario.is_admin %}checked{% endif %}>
+      <label for="is_admin" style="cursor:pointer;">
+        <div class="toggle-label">🛡️ Conta Administrador</div>
+        <div class="toggle-sub">Permite acesso ao painel de administração.</div>
+      </label>
+    </div>
+
+    <div class="form-footer">
+      <button type="submit" class="btn btn-primary">💾 Salvar alterações</button>
+      <a href="/admin/usuarios" class="btn btn-ghost">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

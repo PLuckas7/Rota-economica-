@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}Editar Posto – Admin{% endblock %}
+
+{% block content %}
+<style>
+  .admin-badge { display:inline-flex;align-items:center;gap:6px;background:rgba(229,57,53,.15);color:#e53935;border:1px solid rgba(229,57,53,.3);padding:4px 12px;border-radius:20px;font-size:.75rem;font-weight:700;letter-spacing:.05em;margin-bottom:20px; }
+  .back-link { display:inline-flex;align-items:center;gap:6px;color:var(--muted);text-decoration:none;font-size:.85rem;margin-bottom:16px; }
+  .back-link:hover { color:var(--accent); }
+  .form-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
+  .form-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;max-width:700px; }
+  .form-group { margin-bottom:16px; }
+  .form-group label { display:block;font-size:.82rem;color:var(--muted);margin-bottom:6px;font-weight:500; }
+  .form-group input,.form-group select { width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:.9rem;outline:none;transition:border .2s; }
+  .form-group input:focus { border-color:var(--accent); }
+  .form-group.full { grid-column:1/-1; }
+  .section-label { font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;margin:20px 0 12px;color:var(--accent);border-top:1px solid var(--border);padding-top:16px; }
+  .price-grid { display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px; }
+  .price-input-wrap { position:relative; }
+  .price-input-wrap input { padding-left:36px; }
+  .price-prefix { position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.85rem; }
+  .btn { display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer;border:none;transition:all .2s;text-decoration:none; }
+  .btn-primary { background:var(--accent);color:#000; }
+  .btn-primary:hover { background:#e09520; }
+  .btn-ghost { background:var(--surface2);border:1px solid var(--border);color:var(--text); }
+  .form-footer { display:flex;gap:12px;margin-top:24px;grid-column:1/-1; }
+  .current-price { font-size:.75rem;color:var(--muted);margin-top:4px; }
+</style>
+
+<a href="/admin/postos" class="back-link">← Voltar à lista de postos</a>
+<span class="admin-badge">🛡️ PAINEL ADMINISTRADOR</span>
+
+<h1 class="page-title" style="margin-bottom:24px;">Editar Posto</h1>
+
+<div class="form-card">
+  <form method="post">
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Nome do posto</label>
+        <input type="text" name="nome" value="{{ posto.nome }}" required>
+      </div>
+      <div class="form-group full">
+        <label>Endereço completo</label>
+        <input type="text" name="endereco" value="{{ posto.endereco }}" required>
+      </div>
+      <div class="form-group">
+        <label>Bandeira</label>
+        <input type="text" name="bandeira" value="{{ posto.bandeira or '' }}" placeholder="Shell, Petrobras, Independente…">
+      </div>
+      <div class="form-group">
+        <label>Telefone</label>
+        <input type="text" name="telefone" value="{{ posto.telefone or '' }}" placeholder="(81) 00000-0000">
+      </div>
+      <div class="form-group">
+        <label>Horário de funcionamento</label>
+        <input type="text" name="horario" value="{{ posto.horario or '' }}" placeholder="24h ou 06h–22h">
+      </div>
+      <div class="form-group">
+        &nbsp;
+      </div>
+      <div class="form-group">
+        <label>Latitude</label>
+        <input type="text" name="latitude" value="{{ posto.latitude }}" required>
+      </div>
+      <div class="form-group">
+        <label>Longitude</label>
+        <input type="text" name="longitude" value="{{ posto.longitude }}" required>
+      </div>
+    </div>
+
+    <div class="section-label">⛽ Atualizar Preços (R$/litro)</div>
+    <div class="price-grid">
+      <div class="form-group">
+        <label>🟢 Gasolina</label>
+        <div class="price-input-wrap">
+          <span class="price-prefix">R$</span>
+          <input type="text" name="preco_gasolina" placeholder="{{ '%.2f'|format(posto.preco_atual_gasolina) if posto.preco_atual_gasolina else '0,00' }}">
+        </div>
+        {% if posto.preco_atual_gasolina %}
+        <div class="current-price">Atual: R$ {{ '%.2f'|format(posto.preco_atual_gasolina) }}</div>
+        {% endif %}
+      </div>
+      <div class="form-group">
+        <label>🟡 Etanol</label>
+        <div class="price-input-wrap">
+          <span class="price-prefix">R$</span>
+          <input type="text" name="preco_etanol" placeholder="{{ '%.2f'|format(posto.preco_atual_etanol) if posto.preco_atual_etanol else '0,00' }}">
+        </div>
+        {% if posto.preco_atual_etanol %}
+        <div class="current-price">Atual: R$ {{ '%.2f'|format(posto.preco_atual_etanol) }}</div>
+        {% endif %}
+      </div>
+      <div class="form-group">
+        <label>🔵 Diesel</label>
+        <div class="price-input-wrap">
+          <span class="price-prefix">R$</span>
+          <input type="text" name="preco_diesel" placeholder="{{ '%.2f'|format(posto.preco_atual_diesel) if posto.preco_atual_diesel else '0,00' }}">
+        </div>
+        {% if posto.preco_atual_diesel %}
+        <div class="current-price">Atual: R$ {{ '%.2f'|format(posto.preco_atual_diesel) }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="form-footer">
+      <button type="submit" class="btn btn-primary">💾 Salvar alterações</button>
+      <a href="/admin/postos" class="btn btn-ghost">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

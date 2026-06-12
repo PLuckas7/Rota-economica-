@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Perfil – Rota Econômica{% endblock %}
+{% block page_title %}👤 Meu Perfil{% endblock %}
+
+{% block head %}
+<style>
+  .perfil-layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+  .avatar-big {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2rem; margin-bottom: 16px;
+  }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .stat-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+  .stat-val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.3rem; color: var(--accent); }
+  .stat-lbl { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+  .aval-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  .aval-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .aval-posto-nome { font-weight: 600; font-size: .9rem; }
+  .aval-data { font-size: .75rem; color: var(--muted); }
+  .aval-stars { color: var(--accent); font-size: .88rem; }
+  .aval-texto { font-size: .83rem; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  @media (max-width: 768px) { .perfil-layout { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="perfil-layout">
+  <!-- Info -->
+  <div>
+    <div class="card" style="text-align:center">
+      <div class="avatar-big" style="margin:0 auto 16px">{{ current_user.nome[0].upper() }}</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem">{{ current_user.nome }}</div>
+      <div style="color:var(--muted);font-size:.85rem;margin-top:4px">{{ current_user.email }}</div>
+      {% if current_user.cidade %}
+      <div style="color:var(--muted);font-size:.8rem;margin-top:4px">📍 {{ current_user.cidade }}{% if current_user.pais %}, {{ current_user.pais }}{% endif %}</div>
+      {% endif %}
+      <div style="color:var(--muted);font-size:.75rem;margin-top:8px">Membro desde {{ current_user.criado_em.strftime('%B/%Y') }}</div>
+
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="stat-val">{{ avaliacoes|length }}</div>
+          <div class="stat-lbl">Avaliações</div>
+        </div>
+        <div class="stat-box">
+          {% set media = (avaliacoes|sum(attribute='nota') / avaliacoes|length) if avaliacoes else 0 %}
+          <div class="stat-val">{{ '%.1f'|format(media) }}</div>
+          <div class="stat-lbl">Nota média</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">Contribuição</div>
+      <p style="color:var(--muted);font-size:.83rem;line-height:1.6">
+        Suas avaliações ajudam outros motoristas a encontrar os melhores postos. Continue avaliando! 🌟
+      </p>
+      <div style="margin-top:12px">
+        <a href="/postos" class="btn btn-primary btn-sm">⭐ Avaliar Postos</a>
+        <a href="/comparacao" class="btn btn-ghost btn-sm" style="margin-left:8px">📊 Comparar Preços</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Avaliações -->
+  <div>
+    <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:16px">Minhas Avaliações</h3>
+    {% if not avaliacoes %}
+    <div style="text-align:center;padding:60px 20px;color:var(--muted)">
+      <div style="font-size:3rem;margin-bottom:12px">⭐</div>
+      <p>Você ainda não fez nenhuma avaliação.</p>
+      <a href="/postos" class="btn btn-primary" style="display:inline-flex;margin-top:16px">Avaliar postos</a>
+    </div>
+    {% else %}
+    {% for av in avaliacoes %}
+    <div class="aval-card">
+      <div class="aval-top">
+        <div class="aval-posto-nome">{{ av.posto.nome }}</div>
+        <div class="aval-data">{{ av.criado_em.strftime('%d/%m/%Y') }}</div>
+      </div>
+      <div class="aval-stars">
+        {{ '★' * av.nota }}{{ '☆' * (5 - av.nota) }} {{ av.nota }}/5
+      </div>
+      {% if av.comentario %}<div class="aval-texto">{{ av.comentario }}</div>{% endif %}
+      <div style="font-size:.75rem;color:var(--muted);margin-top:6px">📍 {{ av.posto.endereco }}</div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

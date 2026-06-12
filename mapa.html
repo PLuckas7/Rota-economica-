@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+{% block title %}Mapa – Rota Econômica{% endblock %}
+{% block page_title %}🗺️ Mapa de Postos{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  .mapa-layout { display: grid; grid-template-columns: 320px 1fr; gap: 0; height: calc(100vh - 116px); margin: -28px; }
+  .mapa-sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .mapa-sidebar-header { padding: 16px; border-bottom: 1px solid var(--border); }
+  .mapa-sidebar-header h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .95rem; margin-bottom: 10px; }
+  .filter-row { display: flex; gap: 8px; }
+  .filter-select { flex: 1; padding: 8px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: .82rem; outline: none; }
+  .filter-select:focus { border-color: var(--accent); }
+  .btn-localizar { padding: 8px 14px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-size: .82rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .posto-list { flex: 1; overflow-y: auto; }
+  .posto-card {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background .15s;
+  }
+  .posto-card:hover, .posto-card.ativo { background: var(--surface2); }
+  .posto-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .posto-nome { font-weight: 600; font-size: .88rem; line-height: 1.3; }
+  .posto-band { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+  .posto-dist { font-size: .75rem; color: var(--accent); font-weight: 600; white-space: nowrap; }
+  .posto-precos { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .preco-chip {
+    padding: 3px 8px; border-radius: 6px; font-size: .72rem; font-weight: 600;
+    background: var(--surface2); border: 1px solid var(--border);
+  }
+  .preco-chip.destaque { background: rgba(245,166,35,.15); border-color: rgba(245,166,35,.3); color: var(--accent); }
+  .posto-stars { font-size: .72rem; color: var(--accent); margin-top: 4px; }
+  .loading { padding: 24px; text-align: center; color: var(--muted); font-size: .88rem; }
+
+  #map { height: 100%; width: 100%; }
+
+  /* Leaflet custom popup */
+  .leaflet-popup-content-wrapper { background: var(--surface) !important; border: 1px solid var(--border) !important; border-radius: 12px !important; box-shadow: 0 8px 32px rgba(0,0,0,.5) !important; color: var(--text) !important; }
+  .leaflet-popup-tip { background: var(--surface) !important; }
+  .popup-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .95rem; margin-bottom: 6px; }
+  .popup-precos { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
+  .popup-preco { padding: 3px 8px; border-radius: 6px; font-size: .75rem; font-weight: 600; background: rgba(245,166,35,.15); color: var(--accent); }
+  .popup-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .popup-btn { flex: 1; padding: 7px 10px; border-radius: 8px; font-size: .78rem; font-weight: 600; cursor: pointer; border: none; text-align: center; text-decoration: none; display: block; }
+  .popup-btn-primary { background: var(--accent); color: #000; }
+  .popup-btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+  /* Panel detalhe */
+  .detalhe-panel {
+    position: absolute; bottom: 0; left: 320px; right: 0; z-index: 500;
+    background: var(--surface); border-top: 1px solid var(--border); padding: 16px 20px;
+    transform: translateY(100%); transition: transform .3s; max-height: 50vh; overflow-y: auto;
+  }
+  .detalhe-panel.open { transform: translateY(0); }
+  .detalhe-close { position: absolute; top: 12px; right: 16px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.2rem; }
+  .detalhe-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-right: 32px; }
+  .detalhe-nome { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; }
+  .detalhe-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .info-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .info-box-label { font-size: .72rem; color: var(--muted); margin-bottom: 4px; }
+  .info-box-value { font-size: 1.1rem; font-weight: 700; font-family: 'Syne', sans-serif; }
+  .info-box-value.green { color: var(--green); }
+  .info-box-value.accent { color: var(--accent); }
+
+  @media (max-width: 768px) {
+    .mapa-layout { grid-template-columns: 1fr; }
+    .mapa-sidebar { height: 280px; }
+    .detalhe-panel { left: 0; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mapa-layout">
+  <!-- Sidebar postos -->
+  <div class="mapa-sidebar">
+    <div class="mapa-sidebar-header">
+      <h3>Postos Próximos</h3>
+      <div class="filter-row">
+        <select class="filter-select" id="filtCombustivel">
+          <option value="">Todos</option>
+          <option value="gasolina">Gasolina</option>
+          <option value="etanol">Etanol</option>
+          <option value="diesel">Diesel</option>
+        </select>
+        <select class="filter-select" id="filtOrdem">
+          <option value="distancia">Distância</option>
+          <option value="preco">Menor Preço</option>
+          <option value="avaliacao">Avaliação</option>
+        </select>
+        <button class="btn-localizar" onclick="localizarMe()">📍</button>
+      </div>
+    </div>
+    <div class="posto-list" id="postoList">
+      <div class="loading">Clique em 📍 para localizar postos próximos ou aguarde…</div>
+    </div>
+  </div>
+
+  <!-- Mapa -->
+  <div style="position:relative;flex:1">
+    <div id="map"></div>
+    <!-- Detalhe panel -->
+    <div class="detalhe-panel" id="detalhePanel">
+      <button class="detalhe-close" onclick="fecharDetalhe()">✕</button>
+      <div class="detalhe-header">
+        <div>
+          <div class="detalhe-nome" id="detalheNome">—</div>
+          <div style="font-size:.8rem;color:var(--muted)" id="detalheEnd">—</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <span id="detalheStars" style="color:var(--accent);font-size:.9rem"></span>
+        </div>
+      </div>
+      <div class="detalhe-grid" id="detalheGrid"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap" id="detalheActions"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // ─── MAPA INIT ───
+  const map = L.map('map', { zoomControl: false }).setView([-8.2836, -35.9769], 14);
+  L.control.zoom({ position: 'topright' }).addTo(map);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO',
+    maxZoom: 19
+  }).addTo(map);
+
+  let userLat = -8.2836, userLon = -35.9769;
+  let markers = {};
+  let userMarker = null;
+
+  const postoIcon = (cor) => L.divIcon({
+    html: `<div style="width:32px;height:32px;background:${cor};border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4)"><div style="transform:rotate(45deg);text-align:center;line-height:26px;font-size:14px">⛽</div></div>`,
+    iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -36],
+    className: ''
+  });
+
+  // ─── LOCALIZAR ───
+  function localizarMe() {
+    if (!navigator.geolocation) { alert('Geolocalização não suportada.'); return; }
+    navigator.geolocation.getCurrentPosition(pos => {
+      userLat = pos.coords.latitude;
+      userLon = pos.coords.longitude;
+      if (userMarker) map.removeLayer(userMarker);
+      userMarker = L.circleMarker([userLat, userLon], {
+        radius: 10, color: '#f5a623', fillColor: '#f5a623', fillOpacity: .3, weight: 2
+      }).addTo(map).bindPopup('📍 Você está aqui');
+      map.setView([userLat, userLon], 14);
+      carregarPostos();
+    }, () => {
+      carregarPostos();
+    });
+  }
+
+  // ─── CARREGAR POSTOS ───
+  async function carregarPostos() {
+    const comb = document.getElementById('filtCombustivel').value;
+    const ordem = document.getElementById('filtOrdem').value;
+    let url = `/api/postos?lat=${userLat}&lon=${userLon}&ordem=${ordem}`;
+    if (comb) url += `&combustivel=${comb}`;
+
+    const res = await fetch(url);
+    const postos = await res.json();
+
+    // limpar markers
+    Object.values(markers).forEach(m => map.removeLayer(m));
+    markers = {};
+
+    const list = document.getElementById('postoList');
+    if (!postos.length) { list.innerHTML = '<div class="loading">Nenhum posto encontrado.</div>'; return; }
+
+    list.innerHTML = '';
+
+    const menorPreco = comb ? Math.min(...postos.filter(p => p[comb]).map(p => p[comb])) : null;
+
+    postos.forEach(p => {
+      const cor = menorPreco && p[comb] === menorPreco ? '#2ecc71' : '#f5a623';
+
+      // Marker
+      const mk = L.marker([p.latitude, p.longitude], { icon: postoIcon(cor) })
+        .addTo(map)
+        .bindPopup(buildPopup(p, comb), { maxWidth: 280 });
+      mk.on('click', () => mostrarDetalhe(p.id));
+      markers[p.id] = mk;
+
+      // Card sidebar
+      const card = document.createElement('div');
+      card.className = 'posto-card';
+      card.id = `card-${p.id}`;
+
+      const estrelas = '★'.repeat(Math.round(p.media_avaliacao)) + '☆'.repeat(5 - Math.round(p.media_avaliacao));
+      let precosHtml = '';
+      if (p.gasolina) precosHtml += `<span class="preco-chip${menorPreco && p.gasolina === menorPreco ? ' destaque' : ''}">⛽ R$ ${p.gasolina.toFixed(2)}</span>`;
+      if (p.etanol) precosHtml += `<span class="preco-chip">🌿 R$ ${p.etanol.toFixed(2)}</span>`;
+      if (p.diesel) precosHtml += `<span class="preco-chip">🚛 R$ ${p.diesel.toFixed(2)}</span>`;
+
+      card.innerHTML = `
+        <div class="posto-card-top">
+          <div>
+            <div class="posto-nome">${p.nome}</div>
+            <div class="posto-band">${p.bandeira || ''}</div>
+          </div>
+          ${p.distancia != null ? `<div class="posto-dist">${p.distancia < 1 ? (p.distancia*1000).toFixed(0)+'m' : p.distancia.toFixed(1)+'km'}</div>` : ''}
+        </div>
+        <div class="posto-precos">${precosHtml}</div>
+        <div class="posto-stars">${estrelas} <span style="color:var(--muted)">(${p.total_avaliacoes})</span></div>`;
+      card.onclick = () => {
+        map.setView([p.latitude, p.longitude], 16);
+        markers[p.id].openPopup();
+        mostrarDetalhe(p.id);
+        document.querySelectorAll('.posto-card').forEach(c => c.classList.remove('ativo'));
+        card.classList.add('ativo');
+      };
+      list.appendChild(card);
+    });
+  }
+
+  function buildPopup(p, comb) {
+    let precos = '';
+    if (p.gasolina) precos += `<span class="popup-preco">⛽ R$ ${p.gasolina.toFixed(2)}</span>`;
+    if (p.etanol) precos += `<span class="popup-preco">🌿 R$ ${p.etanol.toFixed(2)}</span>`;
+    if (p.diesel) precos += `<span class="popup-preco">🚛 R$ ${p.diesel.toFixed(2)}</span>`;
+    return `
+      <div class="popup-title">${p.nome}</div>
+      <div style="font-size:.78rem;color:#7a8199">${p.endereco}</div>
+      <div class="popup-precos">${precos}</div>
+      <div class="popup-actions">
+        <button class="popup-btn popup-btn-primary" onclick="mostrarDetalhe(${p.id})">Ver detalhes</button>
+        <a class="popup-btn popup-btn-ghost" href="https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}" target="_blank">🧭 Rota</a>
+      </div>`;
+  }
+
+  // ─── DETALHE ───
+  async function mostrarDetalhe(id) {
+    const res = await fetch(`/api/postos/${id}?lat=${userLat}&lon=${userLon}`);
+    const p = await res.json();
+
+    document.getElementById('detalheNome').textContent = p.nome;
+    document.getElementById('detalheEnd').textContent = p.endereco;
+    const estrelas = '★'.repeat(Math.round(p.media_avaliacao)) + '☆'.repeat(5 - Math.round(p.media_avaliacao));
+    document.getElementById('detalheStars').textContent = `${estrelas} ${p.media_avaliacao}`;
+
+    const items = [
+      { label: '⛽ Gasolina', value: p.gasolina ? `R$ ${p.gasolina.toFixed(2)}` : '—', cls: 'accent' },
+      { label: '🌿 Etanol', value: p.etanol ? `R$ ${p.etanol.toFixed(2)}` : '—', cls: 'accent' },
+      { label: '🚛 Diesel', value: p.diesel ? `R$ ${p.diesel.toFixed(2)}` : '—', cls: 'accent' },
+      { label: '📍 Distância', value: p.distancia != null ? (p.distancia < 1 ? (p.distancia*1000).toFixed(0)+'m' : p.distancia.toFixed(1)+'km') : '—', cls: '' },
+      { label: '🕐 Horário', value: p.horario || '—', cls: '' },
+      { label: '⭐ Avaliação', value: `${p.media_avaliacao}/5 (${p.total_avaliacoes})`, cls: 'green' },
+    ];
+
+    document.getElementById('detalheGrid').innerHTML = items.map(i =>
+      `<div class="info-box"><div class="info-box-label">${i.label}</div><div class="info-box-value ${i.cls}">${i.value}</div></div>`
+    ).join('');
+
+    document.getElementById('detalheActions').innerHTML = `
+      <a href="https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}" target="_blank" class="btn btn-primary btn-sm">🧭 Traçar Rota</a>
+      <button class="btn btn-ghost btn-sm" onclick="abrirAvaliar(${p.id}, '${p.nome.replace(/'/g,"\\'")}')">⭐ Avaliar</button>
+      <button class="btn btn-ghost btn-sm" onclick="window.location='/alertas'">🔔 Criar Alerta</button>
+    `;
+
+    document.getElementById('detalhePanel').classList.add('open');
+  }
+
+  function fecharDetalhe() { document.getElementById('detalhePanel').classList.remove('open'); }
+
+  // ─── MODAL AVALIAR ───
+  let avaliarPostoId = null;
+  function abrirAvaliar(id, nome) {
+    avaliarPostoId = id;
+    const html = `
+      <div style="margin-bottom:14px"><strong style="font-family:'Syne',sans-serif">${nome}</strong></div>
+      <div class="form-group">
+        <label class="form-label">Nota (1-5)</label>
+        <div style="display:flex;gap:8px;font-size:2rem;cursor:pointer" id="starsInput">
+          ${[1,2,3,4,5].map(n => `<span onclick="setStar(${n})" id="star${n}" style="color:var(--border);transition:color .15s">★</span>`).join('')}
+        </div>
+        <input type="hidden" id="notaVal" value="0"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Comentário (opcional)</label>
+        <textarea id="comentVal" class="form-input" rows="3" placeholder="Conte sua experiência…" style="resize:vertical"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="enviarAvaliacao()" style="width:100%">Enviar avaliação</button>`;
+    document.getElementById('avalModal').querySelector('.modal-body').innerHTML = html;
+    document.getElementById('avalModal').classList.add('open');
+  }
+
+  function setStar(n) {
+    document.getElementById('notaVal').value = n;
+    for (let i = 1; i <= 5; i++)
+      document.getElementById(`star${i}`).style.color = i <= n ? 'var(--accent)' : 'var(--border)';
+  }
+
+  async function enviarAvaliacao() {
+    const nota = parseInt(document.getElementById('notaVal').value);
+    if (!nota) { alert('Selecione uma nota!'); return; }
+    const comentario = document.getElementById('comentVal').value;
+    await fetch('/api/avaliar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ posto_id: avaliarPostoId, nota, comentario })
+    });
+    fecharModal('avalModal');
+    carregarPostos();
+    mostrarDetalhe(avaliarPostoId);
+  }
+
+  // Filtros
+  document.getElementById('filtCombustivel').onchange = carregarPostos;
+  document.getElementById('filtOrdem').onchange = carregarPostos;
+
+  // Init
+  localizarMe();
+</script>
+
+<!-- Modal avaliar -->
+<div class="modal-overlay" id="avalModal">
+  <div class="modal">
+    <div class="modal-header"><h3>⭐ Avaliar Posto</h3><button class="modal-close" onclick="fecharModal('avalModal')">✕</button></div>
+    <div class="modal-body"></div>
+  </div>
+</div>
+{% endblock %}

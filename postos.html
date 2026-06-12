@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% block title %}Postos – Rota Econômica{% endblock %}
+{% block page_title %}⛽ Lista de Postos{% endblock %}
+
+{% block head %}
+<style>
+  .grid-controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+  .search-input { flex: 1; min-width: 200px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: .9rem; outline: none; }
+  .search-input:focus { border-color: var(--accent); }
+  .postos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .posto-item {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px; transition: border-color .2s, transform .2s; cursor: pointer; position: relative; overflow: hidden;
+  }
+  .posto-item:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .posto-item::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transform: scaleX(0); transform-origin: left; transition: transform .3s;
+  }
+  .posto-item:hover::before { transform: scaleX(1); }
+  .posto-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .posto-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .95rem; }
+  .posto-band-badge { padding: 3px 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; font-size: .72rem; color: var(--muted); }
+  .posto-addr { font-size: .8rem; color: var(--muted); margin-bottom: 12px; line-height: 1.4; }
+  .preco-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .preco-tag { display: flex; flex-direction: column; align-items: center; padding: 6px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; min-width: 72px; }
+  .preco-tag-label { font-size: .65rem; color: var(--muted); }
+  .preco-tag-val { font-size: .92rem; font-weight: 700; color: var(--accent); margin-top: 2px; }
+  .preco-tag-val.best { color: var(--green); }
+  .posto-footer { display: flex; align-items: center; justify-content: space-between; }
+  .posto-rating { display: flex; align-items: center; gap: 4px; font-size: .8rem; }
+  .rating-stars { color: var(--accent); }
+  .posto-actions { display: flex; gap: 6px; }
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+
+  /* Modal detalhe */
+  .hist-row { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 12px; }
+  .hist-bar { flex: 1; background: rgba(245,166,35,.3); border-radius: 3px 3px 0 0; position: relative; min-height: 4px; transition: background .2s; }
+  .hist-bar:hover { background: rgba(245,166,35,.6); }
+  .hist-bar::after { content: attr(data-val); position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: .65rem; color: var(--accent); white-space: nowrap; }
+  .hist-dates { display: flex; gap: 4px; margin-top: 4px; }
+  .hist-date { flex: 1; text-align: center; font-size: .65rem; color: var(--muted); }
+
+  .aval-item { background: var(--surface2); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+  .aval-top { display: flex; justify-content: space-between; font-size: .78rem; }
+  .aval-user { font-weight: 600; }
+  .aval-data { color: var(--muted); }
+  .aval-stars { color: var(--accent); font-size: .82rem; margin: 4px 0; }
+  .aval-text { font-size: .82rem; color: var(--muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="grid-controls">
+  <input type="text" class="search-input" id="searchInput" placeholder="🔍 Buscar posto, bairro ou bandeira…" oninput="filtrar()"/>
+  <select class="form-input" style="width:auto" id="filtComb" onchange="filtrar()">
+    <option value="">Todos combustíveis</option>
+    <option value="gasolina">Gasolina</option>
+    <option value="etanol">Etanol</option>
+    <option value="diesel">Diesel</option>
+  </select>
+  <select class="form-input" style="width:auto" id="filtOrdem" onchange="filtrar()">
+    <option value="distancia">Por distância</option>
+    <option value="preco">Menor preço</option>
+    <option value="avaliacao">Melhor avaliação</option>
+  </select>
+  <span id="totalCount" style="color:var(--muted);font-size:.85rem;white-space:nowrap"></span>
+</div>
+
+<div class="postos-grid" id="postosGrid">
+  <div class="empty" style="grid-column:1/-1">Carregando postos…</div>
+</div>
+
+<!-- Modal Detalhe -->
+<div class="modal-overlay" id="detalheModal">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header">
+      <h3 id="detalheModalNome">Posto</h3>
+      <button class="modal-close" onclick="fecharModal('detalheModal')">✕</button>
+    </div>
+    <div class="modal-body" id="detalheModalBody"></div>
+  </div>
+</div>
+
+<!-- Modal Avaliar -->
+<div class="modal-overlay" id="avalModal">
+  <div class="modal">
+    <div class="modal-header"><h3>⭐ Avaliar Posto</h3><button class="modal-close" onclick="fecharModal('avalModal')">✕</button></div>
+    <div class="modal-body" id="avalBody"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let todosPostos = [];
+  let melhorGasolina = Infinity, melhorEtanol = Infinity, melhorDiesel = Infinity;
+  let avalPostoId = null;
+
+  async function carregar() {
+    const res = await fetch('/api/postos?ordem=distancia');
+    todosPostos = await res.json();
+
+    todosPostos.forEach(p => {
+      if (p.gasolina && p.gasolina < melhorGasolina) melhorGasolina = p.gasolina;
+      if (p.etanol && p.etanol < melhorEtanol) melhorEtanol = p.etanol;
+      if (p.diesel && p.diesel < melhorDiesel) melhorDiesel = p.diesel;
+    });
+
+    filtrar();
+  }
+
+  function filtrar() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const comb = document.getElementById('filtComb').value;
+    const ordem = document.getElementById('filtOrdem').value;
+
+    let lista = todosPostos.filter(p => {
+      const match = p.nome.toLowerCase().includes(q) || p.endereco.toLowerCase().includes(q) || (p.bandeira||'').toLowerCase().includes(q);
+      const hasComb = !comb || p[comb] != null;
+      return match && hasComb;
+    });
+
+    if (ordem === 'preco' && comb) lista.sort((a, b) => (a[comb]||9999) - (b[comb]||9999));
+    else if (ordem === 'avaliacao') lista.sort((a, b) => b.media_avaliacao - a.media_avaliacao);
+
+    document.getElementById('totalCount').textContent = `${lista.length} posto${lista.length !== 1 ? 's' : ''}`;
+    renderGrid(lista, comb);
+  }
+
+  function renderGrid(lista, comb) {
+    const grid = document.getElementById('postosGrid');
+    if (!lista.length) { grid.innerHTML = '<div class="empty" style="grid-column:1/-1">Nenhum posto encontrado.</div>'; return; }
+
+    grid.innerHTML = lista.map(p => {
+      const est = Math.round(p.media_avaliacao);
+      const stars = '★'.repeat(est) + '☆'.repeat(5 - est);
+
+      const precoHtml = [
+        p.gasolina ? `<div class="preco-tag"><span class="preco-tag-label">⛽ Gasolina</span><span class="preco-tag-val${p.gasolina === melhorGasolina ? ' best' : ''}">R$ ${p.gasolina.toFixed(2)}</span></div>` : '',
+        p.etanol ? `<div class="preco-tag"><span class="preco-tag-label">🌿 Etanol</span><span class="preco-tag-val${p.etanol === melhorEtanol ? ' best' : ''}">R$ ${p.etanol.toFixed(2)}</span></div>` : '',
+        p.diesel ? `<div class="preco-tag"><span class="preco-tag-label">🚛 Diesel</span><span class="preco-tag-val${p.diesel === melhorDiesel ? ' best' : ''}">R$ ${p.diesel.toFixed(2)}</span></div>` : '',
+      ].join('');
+
+      return `<div class="posto-item" onclick="verDetalhe(${p.id})">
+        <div class="posto-top">
+          <div class="posto-title">${p.nome}</div>
+          ${p.bandeira ? `<span class="posto-band-badge">${p.bandeira}</span>` : ''}
+        </div>
+        <div class="posto-addr">📍 ${p.endereco}</div>
+        <div class="preco-row">${precoHtml}</div>
+        <div class="posto-footer">
+          <div class="posto-rating">
+            <span class="rating-stars">${stars}</span>
+            <span style="color:var(--muted);font-size:.78rem">${p.media_avaliacao} (${p.total_avaliacoes})</span>
+          </div>
+          <div class="posto-actions">
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();abrirAvaliar(${p.id},'${p.nome.replace(/'/g,"\\'")}')">⭐</button>
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}" target="_blank" class="btn btn-ghost btn-sm" onclick="event.stopPropagation()">🧭</a>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function verDetalhe(id) {
+    const res = await fetch(`/api/postos/${id}`);
+    const p = await res.json();
+    document.getElementById('detalheModalNome').textContent = p.nome;
+
+    let histHtml = '';
+    for (const tipo of ['gasolina', 'etanol', 'diesel']) {
+      if (!p.historico[tipo]?.length) continue;
+      const vals = p.historico[tipo].map(h => h.valor);
+      const min = Math.min(...vals), max = Math.max(...vals);
+      const range = max - min || 0.1;
+      const bars = p.historico[tipo].map(h => {
+        const pct = ((h.valor - min) / range) * 80 + 20;
+        return `<div class="hist-bar" style="height:${pct}%" data-val="R$${h.valor.toFixed(2)}"></div>`;
+      }).join('');
+      const dates = p.historico[tipo].map(h => `<span class="hist-date">${h.data}</span>`).join('');
+      histHtml += `<div style="margin-bottom:16px"><div style="font-size:.8rem;color:var(--muted);margin-bottom:4px">${tipo.charAt(0).toUpperCase()+tipo.slice(1)} – histórico 7 dias</div><div class="hist-row">${bars}</div><div class="hist-dates">${dates}</div></div>`;
+    }
+
+    const avals = p.avaliacoes.length ? p.avaliacoes.map(a =>
+      `<div class="aval-item"><div class="aval-top"><span class="aval-user">${a.usuario}</span><span class="aval-data">${a.data}</span></div><div class="aval-stars">${'★'.repeat(a.nota)+'☆'.repeat(5-a.nota)}</div>${a.comentario ? `<div class="aval-text">${a.comentario}</div>` : ''}</div>`
+    ).join('') : '<p style="color:var(--muted);font-size:.85rem">Sem avaliações ainda.</p>';
+
+    document.getElementById('detalheModalBody').innerHTML = `
+      <p style="color:var(--muted);font-size:.83rem;margin-bottom:14px">📍 ${p.endereco} &nbsp;|&nbsp; 🕐 ${p.horario || 'N/D'} &nbsp;|&nbsp; 📞 ${p.telefone || 'N/D'}</p>
+      ${histHtml}
+      <div style="margin-top:16px"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;margin-bottom:10px">Avaliações recentes</div>${avals}</div>
+      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="abrirAvaliar(${p.id},'${p.nome.replace(/'/g,"\\'")}')">⭐ Avaliar</button>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${p.latitude},${p.longitude}" target="_blank" class="btn btn-ghost btn-sm">🧭 Rota no Google Maps</a>
+        <a href="/alertas" class="btn btn-ghost btn-sm">🔔 Criar Alerta</a>
+      </div>`;
+    document.getElementById('detalheModal').classList.add('open');
+  }
+
+  function abrirAvaliar(id, nome) {
+    avalPostoId = id;
+    document.getElementById('avalBody').innerHTML = `
+      <p style="margin-bottom:12px;font-weight:600">${nome}</p>
+      <div class="form-group">
+        <label class="form-label">Nota</label>
+        <div style="font-size:2rem;display:flex;gap:8px;cursor:pointer">
+          ${[1,2,3,4,5].map(n => `<span onclick="setStar(${n})" id="star${n}" style="color:var(--border);transition:color .15s">★</span>`).join('')}
+        </div>
+        <input type="hidden" id="notaVal" value="0"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Comentário (opcional)</label>
+        <textarea id="comentVal" class="form-input" rows="3" placeholder="Conte sua experiência…" style="resize:vertical"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="enviarAval()" style="width:100%">Enviar</button>`;
+    document.getElementById('avalModal').classList.add('open');
+  }
+
+  function setStar(n) {
+    document.getElementById('notaVal').value = n;
+    for (let i = 1; i <= 5; i++)
+      document.getElementById(`star${i}`).style.color = i <= n ? 'var(--accent)' : 'var(--border)';
+  }
+
+  async function enviarAval() {
+    const nota = parseInt(document.getElementById('notaVal').value);
+    if (!nota) { alert('Selecione uma nota!'); return; }
+    await fetch('/api/avaliar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ posto_id: avalPostoId, nota, comentario: document.getElementById('comentVal').value })
+    });
+    fecharModal('avalModal');
+    carregar();
+  }
+
+  carregar();
+</script>
+{% endblock %}

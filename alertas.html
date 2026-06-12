@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Alertas – Rota Econômica{% endblock %}
+{% block page_title %}🔔 Alertas de Preço{% endblock %}
+
+{% block head %}
+<style>
+  .alertas-layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+  .alertas-list { display: flex; flex-direction: column; gap: 10px; }
+  .alerta-item {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; display: flex; align-items: center; gap: 14px; transition: border-color .2s;
+  }
+  .alerta-item:hover { border-color: rgba(245,166,35,.3); }
+  .alerta-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+  .alerta-icon.gasolina { background: rgba(245,166,35,.15); }
+  .alerta-icon.etanol { background: rgba(46,204,113,.15); }
+  .alerta-icon.diesel { background: rgba(52,152,219,.15); }
+  .alerta-info { flex: 1; }
+  .alerta-posto { font-weight: 600; font-size: .9rem; }
+  .alerta-detalhe { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+  .alerta-limite { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; color: var(--accent); white-space: nowrap; }
+  .alerta-remove { color: var(--muted); cursor: pointer; font-size: 1.1rem; transition: color .2s; }
+  .alerta-remove:hover { color: var(--red); }
+  .empty-alertas { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-alertas .icon { font-size: 3rem; margin-bottom: 12px; }
+  @media (max-width: 768px) { .alertas-layout { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="alertas-layout">
+  <!-- Criar alerta -->
+  <div>
+    <div class="card">
+      <div class="card-title">🔔 Criar Novo Alerta</div>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:16px">Receba uma notificação quando o preço atingir seu limite</p>
+      <div class="form-group">
+        <label class="form-label">Posto</label>
+        <select class="form-input" id="alertaPosto">
+          <option value="">Selecione um posto…</option>
+          {% for p in postos %}
+          <option value="{{ p.id }}">{{ p.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tipo de Combustível</label>
+        <select class="form-input" id="alertaTipo">
+          <option value="gasolina">⛽ Gasolina</option>
+          <option value="etanol">🌿 Etanol</option>
+          <option value="diesel">🚛 Diesel</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Alertar quando o preço estiver abaixo de (R$)</label>
+        <input type="number" step="0.01" min="0" max="20" class="form-input" id="alertaLimite" placeholder="Ex: 5.80" />
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="criarAlerta()">+ Criar Alerta</button>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">ℹ️ Como funciona</div>
+      <p style="color:var(--muted);font-size:.83rem;line-height:1.7">
+        Os alertas ficam ativos e verificam os preços constantemente.<br>
+        Quando um posto atingir o valor limite, você verá uma notificação 🔔 no sino do menu.<br>
+        Você pode remover alertas a qualquer momento.
+      </p>
+    </div>
+  </div>
+
+  <!-- Lista de alertas -->
+  <div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h3 style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem">Meus Alertas</h3>
+      <span style="color:var(--muted);font-size:.85rem" id="countAlertas">{{ alertas|length }} alerta{{ 's' if alertas|length != 1 else '' }}</span>
+    </div>
+
+    <div class="alertas-list" id="alertasList">
+      {% if not alertas %}
+      <div class="empty-alertas">
+        <div class="icon">🔔</div>
+        <p>Você ainda não tem alertas configurados.</p>
+      </div>
+      {% else %}
+      {% for a in alertas %}
+      {% set posto = namespace(nome='Posto #' + a.posto_id|string) %}
+      {% for p in postos %}{% if p.id == a.posto_id %}{% set posto.nome = p.nome %}{% endif %}{% endfor %}
+      <div class="alerta-item" id="alerta-{{ a.id }}">
+        <div class="alerta-icon {{ a.tipo }}">
+          {{ '⛽' if a.tipo == 'gasolina' else ('🌿' if a.tipo == 'etanol' else '🚛') }}
+        </div>
+        <div class="alerta-info">
+          <div class="alerta-posto">{{ posto.nome }}</div>
+          <div class="alerta-detalhe">{{ a.tipo.capitalize() }} • Criado em {{ a.criado_em.strftime('%d/%m/%Y') }}</div>
+        </div>
+        <div class="alerta-limite">≤ R$ {{ '%.2f'|format(a.preco_limite) }}</div>
+        <span class="alerta-remove" onclick="removerAlerta({{ a.id }})" title="Remover">🗑️</span>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function criarAlerta() {
+    const posto_id = parseInt(document.getElementById('alertaPosto').value);
+    const tipo = document.getElementById('alertaTipo').value;
+    const preco_limite = parseFloat(document.getElementById('alertaLimite').value);
+    if (!posto_id) { alert('Selecione um posto.'); return; }
+    if (!preco_limite || preco_limite <= 0) { alert('Informe um preço limite válido.'); return; }
+
+    const res = await fetch('/api/alertas', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ posto_id, tipo, preco_limite })
+    });
+    if (res.ok) { location.reload(); }
+  }
+
+  async function removerAlerta(id) {
+    if (!confirm('Remover este alerta?')) return;
+    await fetch(`/api/alertas/${id}`, { method: 'DELETE' });
+    const el = document.getElementById(`alerta-${id}`);
+    if (el) el.remove();
+    // atualizar contador
+    const count = document.querySelectorAll('.alerta-item').length;
+    document.getElementById('countAlertas').textContent = `${count} alerta${count !== 1 ? 's' : ''}`;
+  }
+</script>
+{% endblock %}

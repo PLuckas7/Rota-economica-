@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cadastro – Rota Econômica</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root { --accent: #f5a623; --accent2: #e8410a; --bg: #0d0f14; --surface: #151820; --border: #252a3a; --text: #e8eaf2; --muted: #7a8199; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+      background-image: radial-gradient(ellipse at 10% 80%, rgba(245,166,35,.07) 0%, transparent 55%), radial-gradient(ellipse at 90% 20%, rgba(232,65,10,.05) 0%, transparent 50%);
+    }
+    .box {
+      width: 100%; max-width: 480px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 36px;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+    .logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+    .logo span { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem; }
+    h2 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; }
+    p.sub { color: var(--muted); font-size: .88rem; margin: 4px 0 24px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-group { margin-bottom: 14px; }
+    .form-label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+    .form-input { width: 100%; padding: 11px 13px; background: #1c2030; border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: .9rem; outline: none; transition: border-color .2s; }
+    .form-input:focus { border-color: var(--accent); }
+    .btn { width: 100%; padding: 13px; background: var(--accent); color: #000; border: none; border-radius: 10px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 6px; transition: background .2s; }
+    .btn:hover { background: #e8960d; }
+    .back { text-align: center; margin-top: 16px; font-size: .88rem; color: var(--muted); }
+    .link { color: var(--accent); text-decoration: none; font-weight: 500; }
+    .link:hover { text-decoration: underline; }
+    .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: .85rem; background: rgba(231,76,60,.15); border: 1px solid rgba(231,76,60,.3); color: #e74c3c; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="logo">
+      <div class="logo-icon">⛽</div>
+      <span>Rota Econômica</span>
+    </div>
+    <h2>Criar conta grátis</h2>
+    <p class="sub">Preencha os dados para começar a economizar</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}<div class="flash">{{ msg }}</div>{% endfor %}
+    {% endwith %}
+
+    <form method="POST">
+      <div class="form-group">
+        <label class="form-label">Nome completo</label>
+        <input type="text" name="nome" class="form-input" placeholder="Seu nome" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">E-mail</label>
+        <input type="email" name="email" class="form-input" placeholder="seu@email.com" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Senha</label>
+        <input type="password" name="senha" class="form-input" placeholder="Mínimo 6 caracteres" required minlength="6" />
+      </div>
+      <div class="row">
+        <div class="form-group">
+          <label class="form-label">Cidade</label>
+          <input type="text" name="cidade" class="form-input" placeholder="Ex: Caruaru" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">País</label>
+          <input type="text" name="pais" class="form-input" placeholder="Ex: Brasil" />
+        </div>
+      </div>
+      <button type="submit" class="btn">Criar minha conta →</button>
+    </form>
+    <div class="back">Já tem conta? <a href="/login" class="link">Entrar</a></div>
+  </div>
+</body>
+</html>
