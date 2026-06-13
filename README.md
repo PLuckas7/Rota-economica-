@@ -114,3 +114,7 @@ rota_economica/
 | 1 | 1–2 | Requisitos, protótipo, BD, cadastro, mapa |
 | 2 | 3–4 | Comparação, filtros, avaliações |
 | 3 | 5–6 | Alertas, testes, polimento, entrega final |
+
+
+Email Admin: admin@rotaeconomica.com
+Senha Admin: Admin@2026
